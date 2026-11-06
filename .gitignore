@@ -1,0 +1,29 @@
+# Publish only what is listed here: everything else in ~/lander3d stays private.
+/*
+!/.gitignore
+!/.nojekyll
+!/index.html
+!/README.md
+!/LICENSE
+!/game/
+!/blender/
+!/prompts/
+/game/*
+!/game/index.html
+!/game/src/
+!/game/assets/
+/blender/*
+!/blender/make_lander.py
+# never, wherever they are
+*.bak
+*.orig
+*.partial
+*~
+.DS_Store
+# leftovers from the first lander model and raw model output
+*.blend
+*.blend1
+/game/assets/models/*.png
+/prompts/*_run*
+/prompts/*.reply.md
+/prompts/*.thinking.md

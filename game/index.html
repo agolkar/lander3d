@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lunar Landing</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; padding: 0; overflow: hidden; background: #000; }
+  body { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-weight: 300; }
+  canvas { display: block; }
+  #loading { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; color: #c8c8c8; z-index: 5000; }
+  #loading .title { font-size: 14px; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 12px; }
+  #loading .bar { width: 320px; height: 4px; background: #222; border: 1px solid #444; }
+  #loading .bar-fill { height: 100%; width: 0%; background: #8a8a8a; transition: width 0.2s; }
+  #loading .text { margin-top: 8px; font-size: 12px; color: #888; }
+  #error-overlay { display: none; position: fixed; top: 12px; left: 12px; max-width: 80vw; max-height: 60vh; overflow: auto; background: rgba(40,0,0,0.92); border: 1px solid #a33; color: #f88; padding: 12px; font-size: 12px; white-space: pre-wrap; z-index: 10000; }
+  .hud-panel { background: rgba(8, 10, 12, 0.72); border: 1px solid rgba(180, 190, 200, 0.28); color: #c8cdd2; padding: 10px 12px; }
+  #hud-left { position: fixed; top: 18px; left: 18px; width: 270px; font-size: 12px; }
+  .hud-row { display: flex; justify-content: space-between; align-items: baseline; margin: 3px 0; }
+  .hud-label { font-size: 10px; font-weight: 300; color: #9aa0a6; letter-spacing: 0.04em; }
+  .hud-value { font-size: 16px; font-weight: 400; font-variant-numeric: tabular-nums; color: #d8dde2; }
+  .hud-bar { height: 5px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.18); margin: 4px 0 6px; }
+  .hud-bar-fill { height: 100%; width: 0%; background: #b8c0c8; transition: width 0.08s linear; }
+  .hud-warn { color: #e0b040; }
+  .hud-danger { color: #ff5a5a; }
+  .hud-danger-blink { color: #ff3a3a; animation: blink 0.8s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0.25; } }
+  #hud-contact { position: fixed; left: 18px; bottom: 18px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #9aa0a6; background: rgba(8,10,12,0.72); border: 1px solid rgba(180,190,200,0.28); padding: 6px 10px; }
+  #hud-contact .lamp { width: 10px; height: 10px; border-radius: 50%; background: #1a2a3a; border: 1px solid #3a4a5a; }
+  #hud-contact.on { color: #9cf; }
+  #hud-contact.on .lamp { background: #4af; box-shadow: 0 0 8px #4af; }
+  #hud-center { position: fixed; left: 50%; top: 18%; transform: translateX(-50%); font-size: 18px; color: #d8dde2; text-align: center; text-shadow: 0 2px 8px #000; pointer-events: none; }
+  #hud-help { display: none; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 420px; font-size: 12px; z-index: 2000; }
+  .hud-help-title { font-size: 14px; margin-bottom: 8px; color: #d8dde2; }
+  .hud-help-row { display: flex; justify-content: space-between; margin: 3px 0; }
+  .hud-help-row span:first-child { color: #9aa0a6; }
+  .hud-help-row span:last-child { color: #d8dde2; }
+  #hud-fps { display: none; position: fixed; top: 18px; right: 18px; font-size: 12px; color: #9aa0a6; background: rgba(8,10,12,0.72); border: 1px solid rgba(180,190,200,0.28); padding: 6px 10px; }
+  #hud-toast { display: none; position: fixed; top: 54px; left: 50%; transform: translateX(-50%); font-size: 13px; color: #d8dde2; background: rgba(8,10,12,0.72); border: 1px solid rgba(180,190,200,0.28); padding: 6px 12px; pointer-events: none; }
+  #hud-exposure { display: none; position: fixed; top: 18px; left: 50%; transform: translateX(-50%); font-size: 12px; color: #d8dde2; background: rgba(8,10,12,0.72); border: 1px solid rgba(180,190,200,0.28); padding: 6px 10px; }
+  .hud-marker { position: fixed; pointer-events: none; color: #c8cdd2; font-size: 22px; text-shadow: 0 0 6px #000; z-index: 1000; }
+  .hud-drift { color: #8cf; font-size: 18px; }
+  #hud-result { display: none; position: fixed; right: 18px; top: 50%; transform: translateY(-50%); width: 360px; max-width: calc(100vw - 36px); font-size: 12px; z-index: 1500; }
+  /* the HUD is read-only: let the mouse reach the game underneath (zoom and look around work everywhere) */
+  #hud, #hud * { pointer-events: none; }
+  .hud-result-title { font-size: 16px; margin-bottom: 8px; color: #d8dde2; }
+  .hud-result-reason { color: #ff5a5a; margin-bottom: 6px; }
+  .hud-result-rating { margin-top: 8px; color: #9cf; }
+  .hud-result-hint { margin-top: 8px; color: #9aa0a6; }
+</style>
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="loading">
+  <div class="title">Lunar Landing</div>
+  <div class="bar"><div id="loading-bar" class="bar-fill"></div></div>
+  <div id="loading-text" class="text">Loading…</div>
+</div>
+<div id="error-overlay"></div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
